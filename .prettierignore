@@ -1,0 +1,2 @@
+# Minified/bundled file — exclude from formatting to preserve compact form.
+scripts/embedder-worker.js
