@@ -8,7 +8,11 @@ export function areScanResultsValid(
   context: { accountEmail?: string },
 ): boolean {
   // Account mismatch: results belong to a different account
-  if (stored.accountEmail && context.accountEmail && stored.accountEmail !== context.accountEmail)
+  if (
+    stored.accountEmail &&
+    context.accountEmail &&
+    stored.accountEmail !== context.accountEmail
+  )
     return false;
   return true;
 }

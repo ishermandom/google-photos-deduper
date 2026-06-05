@@ -160,7 +160,11 @@ self.addEventListener("message", async (event: MessageEvent) => {
         if (members.length >= 2) allGroups.push(members);
 
       if (bi % 100 === 0)
-        self.postMessage({ type: "detectionProgress", current: bi + 1, total: buckets.length });
+        self.postMessage({
+          type: "detectionProgress",
+          current: bi + 1,
+          total: buckets.length,
+        });
     }
 
     self.postMessage({ type: "detectionResults", groups: allGroups });
@@ -201,7 +205,15 @@ async function workerCommunityDetection(
 
     // Compute cosine similarity: batch x all embeddings
     // Embeddings are L2-normalized so cos_sim = dot product
-    const cosScores = matMul(embeddings, startIdx, endIdx, embeddings, 0, n, dim);
+    const cosScores = matMul(
+      embeddings,
+      startIdx,
+      endIdx,
+      embeddings,
+      0,
+      n,
+      dim,
+    );
 
     for (let i = 0; i < batchLen; i++) {
       const row = cosScores.subarray(i * n, (i + 1) * n);

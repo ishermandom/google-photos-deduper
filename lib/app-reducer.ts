@@ -7,8 +7,8 @@ import type {
   HealthCheckResultMessage,
   GptkProgressMessage,
   ScanPhase,
-} from "./types"
-import { areScanResultsValid } from "./scan-results"
+} from "./types";
+import { areScanResultsValid } from "./scan-results";
 
 // ============================================================
 // Types
@@ -19,69 +19,79 @@ export type AppState =
   | { status: "connected"; hasGptk: boolean; accountEmail?: string }
   | { status: "disconnected"; error: string }
   | {
-      status: "scanning"
-      phase: ScanPhase
-      itemsProcessed: number
-      totalEstimate: number
-      message: string
-      requestId: string
-      hasGptk: boolean
-      accountEmail?: string
+      status: "scanning";
+      phase: ScanPhase;
+      itemsProcessed: number;
+      totalEstimate: number;
+      message: string;
+      requestId: string;
+      hasGptk: boolean;
+      accountEmail?: string;
     }
   | {
-      status: "results"
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
-      totalItems: number
-      accountEmail?: string
+      status: "results";
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
+      totalItems: number;
+      accountEmail?: string;
     }
   | {
-      status: "trashing"
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
-      totalItems: number
-      totalToTrash: number
-      trashedSoFar: number
-      accountEmail?: string
-    }
+      status: "trashing";
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
+      totalItems: number;
+      totalToTrash: number;
+      trashedSoFar: number;
+      accountEmail?: string;
+    };
 
 export type AppAction =
   | { type: "HEALTH_CHECK_RESULT"; payload: HealthCheckResultMessage }
-  | { type: "SCAN_STARTED"; requestId: string; hasGptk: boolean; accountEmail?: string }
-  | { type: "SCAN_PROGRESS"; payload: GptkProgressMessage; phase?: ScanPhase; totalItems?: number }
+  | {
+      type: "SCAN_STARTED";
+      requestId: string;
+      hasGptk: boolean;
+      accountEmail?: string;
+    }
+  | {
+      type: "SCAN_PROGRESS";
+      payload: GptkProgressMessage;
+      phase?: ScanPhase;
+      totalItems?: number;
+    }
   | { type: "SCAN_MEDIA_FETCHED"; mediaItems: GpdMediaItem[] }
   | {
-      type: "SCAN_COMPLETE"
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
+      type: "SCAN_COMPLETE";
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
     }
   | { type: "SCAN_ERROR"; error: string }
   | { type: "SCAN_CANCELLED" }
   | {
-      type: "TRASH_STARTED"
-      totalToTrash: number
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
-      totalItems: number
+      type: "TRASH_STARTED";
+      totalToTrash: number;
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
+      totalItems: number;
     }
   | { type: "TRASH_PROGRESS"; trashedSoFar: number }
   | { type: "TRASH_COMPLETE"; trashedKeys: string[] }
   | { type: "TRASH_ERROR"; error: string }
   | {
-      type: "LOAD_SAVED_RESULTS"
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
-      totalItems: number
-      accountEmail?: string
+      type: "LOAD_SAVED_RESULTS";
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
+      totalItems: number;
+      accountEmail?: string;
     }
   | {
-      type: "RESTORE_SNAPSHOT"
-      mediaItems: Record<string, GpdMediaItem>
-      groups: DuplicateGroup[]
-      totalItems: number
+      type: "RESTORE_SNAPSHOT";
+      mediaItems: Record<string, GpdMediaItem>;
+      groups: DuplicateGroup[];
+      totalItems: number;
     }
   | { type: "GP_TAB_CLOSED" }
-  | { type: "RESET" }
+  | { type: "RESET" };
 
 // ============================================================
 // Reducer
@@ -94,23 +104,36 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         // Don't downgrade from results — just confirm GP is still available
         if (state.status === "results") {
           // Clear stale results when a different account is detected
-          if (!areScanResultsValid({ accountEmail: state.accountEmail }, { accountEmail: action.payload.accountEmail })) {
-            return { status: "connected", hasGptk: action.payload.hasGptk, accountEmail: action.payload.accountEmail }
+          if (
+            !areScanResultsValid(
+              { accountEmail: state.accountEmail },
+              { accountEmail: action.payload.accountEmail },
+            )
+          ) {
+            return {
+              status: "connected",
+              hasGptk: action.payload.hasGptk,
+              accountEmail: action.payload.accountEmail,
+            };
           }
-          const email = action.payload.accountEmail ?? state.accountEmail
-          if (email === state.accountEmail) return state
-          return { ...state, accountEmail: email }
+          const email = action.payload.accountEmail ?? state.accountEmail;
+          if (email === state.accountEmail) return state;
+          return { ...state, accountEmail: email };
         }
-        return { status: "connected", hasGptk: action.payload.hasGptk, accountEmail: action.payload.accountEmail }
+        return {
+          status: "connected",
+          hasGptk: action.payload.hasGptk,
+          accountEmail: action.payload.accountEmail,
+        };
       }
       // Don't disconnect if already showing results — user can still view them
       // and GP tab will be required again only when they start a new scan/trash
-      if (state.status === "results") return state
+      if (state.status === "results") return state;
       return {
         status: "disconnected",
         error:
           "Cannot connect to Google Photos. Please open photos.google.com in another tab.",
-      }
+      };
 
     case "SCAN_STARTED":
       return {
@@ -122,32 +145,35 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         requestId: action.requestId,
         hasGptk: action.hasGptk,
         accountEmail: action.accountEmail,
-      }
+      };
 
     case "SCAN_PROGRESS":
-      if (state.status !== "scanning") return state
+      if (state.status !== "scanning") return state;
       // action.phase === undefined means this came from a GPTK gptkProgress message.
       // GPTK sends batched fetch counts asynchronously and can arrive after gptkResult
       // has already triggered the downloading/computing phases. Drop those stale counts
       // to prevent the bar from jumping backwards.
-      if (action.phase === undefined && state.phase !== "fetching") return state
+      if (action.phase === undefined && state.phase !== "fetching")
+        return state;
       return {
         ...state,
         ...(action.phase !== undefined ? { phase: action.phase } : {}),
         itemsProcessed: action.payload.itemsProcessed,
-        ...(action.totalItems !== undefined ? { totalEstimate: action.totalItems } : {}),
+        ...(action.totalItems !== undefined
+          ? { totalEstimate: action.totalItems }
+          : {}),
         message: action.payload.message || state.message,
-      }
+      };
 
     case "SCAN_MEDIA_FETCHED":
-      if (state.status !== "scanning") return state
+      if (state.status !== "scanning") return state;
       return {
         ...state,
         phase: "downloading_thumbnails",
         itemsProcessed: 0,
         totalEstimate: action.mediaItems.length,
         message: `Fetched ${action.mediaItems.length} items. Downloading thumbnails...`,
-      }
+      };
 
     case "SCAN_COMPLETE":
       return {
@@ -156,14 +182,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         groups: action.groups,
         totalItems: Object.keys(action.mediaItems).length,
         accountEmail: "accountEmail" in state ? state.accountEmail : undefined,
-      }
+      };
 
     case "SCAN_ERROR":
-      return { status: "disconnected", error: action.error }
+      return { status: "disconnected", error: action.error };
 
     case "SCAN_CANCELLED":
-      if (state.status !== "scanning") return state
-      return { status: "connected", hasGptk: state.hasGptk, accountEmail: state.accountEmail }
+      if (state.status !== "scanning") return state;
+      return {
+        status: "connected",
+        hasGptk: state.hasGptk,
+        accountEmail: state.accountEmail,
+      };
 
     case "TRASH_STARTED":
       return {
@@ -174,25 +204,25 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         totalToTrash: action.totalToTrash,
         trashedSoFar: 0,
         accountEmail: "accountEmail" in state ? state.accountEmail : undefined,
-      }
+      };
 
     case "TRASH_PROGRESS":
-      if (state.status !== "trashing") return state
-      return { ...state, trashedSoFar: action.trashedSoFar }
+      if (state.status !== "trashing") return state;
+      return { ...state, trashedSoFar: action.trashedSoFar };
 
     case "TRASH_COMPLETE": {
-      if (state.status !== "trashing") return state
-      const trashedSet = new Set(action.trashedKeys)
+      if (state.status !== "trashing") return state;
+      const trashedSet = new Set(action.trashedKeys);
       const newGroups = state.groups
         .map((g) => ({
           ...g,
           mediaKeys: g.mediaKeys.filter((k) => !trashedSet.has(k)),
         }))
-        .filter((g) => g.mediaKeys.length >= 2)
+        .filter((g) => g.mediaKeys.length >= 2);
 
-      const newMediaItems = { ...state.mediaItems }
+      const newMediaItems = { ...state.mediaItems };
       for (const key of action.trashedKeys) {
-        delete newMediaItems[key]
+        delete newMediaItems[key];
       }
 
       return {
@@ -201,11 +231,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         groups: newGroups,
         totalItems: state.totalItems,
         accountEmail: state.accountEmail,
-      }
+      };
     }
 
     case "TRASH_ERROR":
-      return { status: "disconnected", error: action.error }
+      return { status: "disconnected", error: action.error };
 
     case "LOAD_SAVED_RESULTS":
       return {
@@ -214,7 +244,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         groups: action.groups,
         totalItems: action.totalItems,
         accountEmail: action.accountEmail,
-      }
+      };
 
     case "RESTORE_SNAPSHOT":
       return {
@@ -223,18 +253,19 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         groups: action.groups,
         totalItems: action.totalItems,
         accountEmail: "accountEmail" in state ? state.accountEmail : undefined,
-      }
+      };
 
     case "GP_TAB_CLOSED":
       return {
         status: "disconnected",
-        error: "Google Photos tab was closed. Please reopen photos.google.com and retry.",
-      }
+        error:
+          "Google Photos tab was closed. Please reopen photos.google.com and retry.",
+      };
 
     case "RESET":
-      return { status: "connecting" }
+      return { status: "connecting" };
 
     default:
-      return state
+      return state;
   }
 }

@@ -1,6 +1,6 @@
 // Integration E2E tests — no Google Photos auth required.
 // Run: npm run test:integration
-import { defineConfig } from "@playwright/test"
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "tests/e2e/integration",
@@ -13,4 +13,4 @@ export default defineConfig({
       use: { headless: false },
     },
   ],
-})
+});

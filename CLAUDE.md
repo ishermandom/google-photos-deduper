@@ -4,8 +4,9 @@
 
 ### Chrome DevTools MCP does NOT show extension pages
 
-The `mcp__chrome-devtools__*` tools only see regular browser tabs (e.g. `https://...`).
-Chrome extension pages (`chrome-extension://...`) — including the app tab, popup, and service worker — are **invisible** to the DevTools MCP.
+The `mcp__chrome-devtools__*` tools only see regular browser tabs (e.g.
+`https://...`). Chrome extension pages (`chrome-extension://...`) — including
+the app tab, popup, and service worker — are **invisible** to the DevTools MCP.
 
 **Use `tools/cdp.py` instead** for all interactions with extension pages:
 
@@ -25,7 +26,8 @@ python3 tools/cdp.py click <target_id> "#some-button"
 
 ## Development
 
-Always use dev mode — it watches for changes and rebuilds automatically to `build/chrome-mv3-dev`:
+Always use dev mode — it watches for changes and rebuilds automatically to
+`build/chrome-mv3-dev`:
 
 ```bash
 npm run dev
@@ -43,20 +45,27 @@ Then reopen the app tab (it closes on reload):
 python3 tools/cdp.py navigate <gp_tab_id> "chrome-extension://<ext_id>/tabs/app.html"
 ```
 
-Do **not** use `npm run build` for development — that builds prod and overwrites dev.
+Do **not** use `npm run build` for development — that builds prod and overwrites
+dev.
 
 ---
 
-**Note**: In newer versions of Chrome (v137 and later), the `--load-extension` CLI flag is completely ignored on standard builds for security reasons. Unpacked extensions must be loaded **manually once** via the `chrome://extensions` page with **Developer mode** enabled.
+**Note**: In newer versions of Chrome (v137 and later), the `--load-extension`
+CLI flag is completely ignored on standard builds for security reasons. Unpacked
+extensions must be loaded **manually once** via the `chrome://extensions` page
+with **Developer mode** enabled.
 
-Chrome must be running with remote debugging enabled on port 9222. If not started:
+Chrome must be running with remote debugging enabled on port 9222. If not
+started:
 
 **macOS:**
+
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir=".chrome-profile" --no-first-run
 ```
 
 **Windows [WSL]:**
+
 ```bash
 "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\Users\mackt\Chrome Profiles\chrome-debug" --no-first-run
 ```

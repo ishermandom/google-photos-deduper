@@ -39,7 +39,7 @@ export interface ScanLibraryMessage extends BaseMessage {
   options: ScanOptions;
 }
 
-export type ScanMode = "smart" | "full"
+export type ScanMode = "smart" | "full";
 
 export interface ScanOptions {
   similarityThreshold: number; // 0.90 - 1.00

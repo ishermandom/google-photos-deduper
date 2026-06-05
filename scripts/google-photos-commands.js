@@ -5,11 +5,11 @@
 // Communication with the extension happens via window.postMessage.
 // The bridge content script (google-photos-bridge.ts) relays these to chrome.runtime.
 
-const GPD_APP_ID = "GPD"
+const GPD_APP_ID = "GPD";
 
 // Number of items per API request for batch operations (trash, restore).
 // Matches GPTK's default operationSize. Large single requests cause HTTP 504.
-const BATCH_SIZE = 250
+const BATCH_SIZE = 250;
 
 function postResult(command, requestId, data) {
   window.postMessage({
@@ -18,8 +18,8 @@ function postResult(command, requestId, data) {
     command,
     requestId,
     success: true,
-    data
-  })
+    data,
+  });
 }
 
 function postError(command, requestId, error) {
@@ -29,8 +29,8 @@ function postError(command, requestId, error) {
     command,
     requestId,
     success: false,
-    error: String(error)
-  })
+    error: String(error),
+  });
 }
 
 // command is optional; when provided, the app can route progress to the right handler.
@@ -41,16 +41,16 @@ function postProgress(requestId, itemsProcessed, message, command) {
     requestId,
     itemsProcessed,
     message,
-    ...(command !== undefined ? { command } : {})
-  })
+    ...(command !== undefined ? { command } : {}),
+  });
 }
 
 function chunkArray(arr, size) {
-  const chunks = []
+  const chunks = [];
   for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size))
+    chunks.push(arr.slice(i, i + size));
   }
-  return chunks
+  return chunks;
 }
 
 // ============================================================
@@ -59,55 +59,55 @@ function chunkArray(arr, size) {
 // ============================================================
 
 async function getAllMediaItems(requestId, args) {
-  const gptkApi = window.gptkApi
+  const gptkApi = window.gptkApi;
   if (!gptkApi) {
     postError(
       "getAllMediaItems",
       requestId,
-      "GPTK API not available. Reload the Google Photos page."
-    )
-    return
+      "GPTK API not available. Reload the Google Photos page.",
+    );
+    return;
   }
 
   // sinceTimestamp: stop paginating once we reach items already in the cache
   const sinceTimestamp =
-    args && args.sinceTimestamp ? args.sinceTimestamp : null
+    args && args.sinceTimestamp ? args.sinceTimestamp : null;
 
   // Per-page timeout. Google's pagination endpoint occasionally hangs without
   // ever rejecting fetch(), which used to lock the UI on "Fetching media
   // items" indefinitely. A timeout lets us surface a real error to the user.
-  const PAGE_TIMEOUT_MS = 60_000
+  const PAGE_TIMEOUT_MS = 60_000;
 
   function withTimeout(promise, ms, label) {
-    let timer
+    let timer;
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(
         () =>
           reject(
             new Error(
-              `${label} timed out after ${Math.round(ms / 1000)}s. Google's API likely stalled — please re-scan.`
-            )
+              `${label} timed out after ${Math.round(ms / 1000)}s. Google's API likely stalled — please re-scan.`,
+            ),
           ),
-        ms
-      )
-    })
-    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+        ms,
+      );
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }
 
   try {
-    let nextPageId = null
-    const mediaItems = []
-    let reachedCache = false
+    let nextPageId = null;
+    const mediaItems = [];
+    let reachedCache = false;
 
     do {
       const page = await withTimeout(
         gptkApi.getItemsByUploadedDate(nextPageId),
         PAGE_TIMEOUT_MS,
-        "Fetching page from Google Photos"
-      )
+        "Fetching page from Google Photos",
+      );
       if (!page) {
-        console.warn("GPD: Empty page response, stopping pagination")
-        break
+        console.warn("GPD: Empty page response, stopping pagination");
+        break;
       }
       if (page.items && page.items.length > 0) {
         for (const item of page.items) {
@@ -116,8 +116,8 @@ async function getAllMediaItems(requestId, args) {
             sinceTimestamp !== null &&
             item.creationTimestamp <= sinceTimestamp
           ) {
-            reachedCache = true
-            break
+            reachedCache = true;
+            break;
           }
           mediaItems.push({
             mediaKey: item.mediaKey,
@@ -131,24 +131,24 @@ async function getAllMediaItems(requestId, args) {
             isOwned: item.isOwned,
             isOriginalQuality: item.isOriginalQuality ?? null,
             fileName: item.descriptionShort || null,
-            productUrl: "https://photos.google.com/photo/" + item.mediaKey
-          })
+            productUrl: "https://photos.google.com/photo/" + item.mediaKey,
+          });
         }
       }
-      nextPageId = page.nextPageId || null
+      nextPageId = page.nextPageId || null;
 
       postProgress(
         requestId,
         mediaItems.length,
-        `Fetched ${mediaItems.length} items`
-      )
+        `Fetched ${mediaItems.length} items`,
+      );
 
-      if (reachedCache) break
-    } while (nextPageId)
+      if (reachedCache) break;
+    } while (nextPageId);
 
-    postResult("getAllMediaItems", requestId, mediaItems)
+    postResult("getAllMediaItems", requestId, mediaItems);
   } catch (error) {
-    postError("getAllMediaItems", requestId, error)
+    postError("getAllMediaItems", requestId, error);
   }
 }
 
@@ -161,50 +161,50 @@ async function trashItems(requestId, args) {
   // Call api.moveItemsToTrash directly instead of gptkApiUtils.moveToTrash,
   // because the latter goes through executeWithConcurrency which checks
   // gptkCore.isProcessRunning (always false when called from extension).
-  const api = window.gptkApiUtils?.api
+  const api = window.gptkApiUtils?.api;
   if (!api) {
     postError(
       "trashItems",
       requestId,
-      "GPTK API not available. Reload the Google Photos page."
-    )
-    return
+      "GPTK API not available. Reload the Google Photos page.",
+    );
+    return;
   }
 
   try {
-    const dedupKeys = args.dedupKeys
-    const mediaKeysToTrash = args.mediaKeysToTrash || []
-    const total = dedupKeys.length
-    const chunks = chunkArray(dedupKeys, BATCH_SIZE)
+    const dedupKeys = args.dedupKeys;
+    const mediaKeysToTrash = args.mediaKeysToTrash || [];
+    const total = dedupKeys.length;
+    const chunks = chunkArray(dedupKeys, BATCH_SIZE);
     console.log(
-      `[GPD] trash: ${total} items, ${chunks.length} chunk(s) of ${BATCH_SIZE}`
-    )
+      `[GPD] trash: ${total} items, ${chunks.length} chunk(s) of ${BATCH_SIZE}`,
+    );
 
     // Chunk to avoid HTTP 504 Gateway Timeout on large batches (fixes #107).
-    let trashed = 0
+    let trashed = 0;
     for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i]
-      await api.moveItemsToTrash(chunk)
-      trashed += chunk.length
+      const chunk = chunks[i];
+      await api.moveItemsToTrash(chunk);
+      trashed += chunk.length;
       console.log(
-        `[GPD] trash chunk ${i + 1}/${chunks.length}: ${trashed}/${total} done`
-      )
+        `[GPD] trash chunk ${i + 1}/${chunks.length}: ${trashed}/${total} done`,
+      );
       postProgress(
         requestId,
         trashed,
         `Moved ${trashed} of ${total} items to trash`,
-        "trashItems"
-      )
+        "trashItems",
+      );
     }
 
-    console.log(`[GPD] trash complete: ${total} items moved`)
+    console.log(`[GPD] trash complete: ${total} items moved`);
     postResult("trashItems", requestId, {
       trashedCount: total,
-      trashedKeys: mediaKeysToTrash
-    })
+      trashedKeys: mediaKeysToTrash,
+    });
   } catch (error) {
-    console.error("[GPD] trash error:", error)
-    postError("trashItems", requestId, error)
+    console.error("[GPD] trash error:", error);
+    postError("trashItems", requestId, error);
   }
 }
 
@@ -216,46 +216,46 @@ async function trashItems(requestId, args) {
 async function restoreItems(requestId, args) {
   // Call api.restoreFromTrash directly (same reason as trashItems —
   // executeWithConcurrency checks isProcessRunning which is always false here).
-  const api = window.gptkApiUtils?.api
+  const api = window.gptkApiUtils?.api;
   if (!api) {
     postError(
       "restoreItems",
       requestId,
-      "GPTK API not available. Reload the Google Photos page."
-    )
-    return
+      "GPTK API not available. Reload the Google Photos page.",
+    );
+    return;
   }
 
   try {
-    const dedupKeys = args.dedupKeys
-    const total = dedupKeys.length
-    const chunks = chunkArray(dedupKeys, BATCH_SIZE)
+    const dedupKeys = args.dedupKeys;
+    const total = dedupKeys.length;
+    const chunks = chunkArray(dedupKeys, BATCH_SIZE);
     console.log(
-      `[GPD] restore: ${total} items, ${chunks.length} chunk(s) of ${BATCH_SIZE}`
-    )
+      `[GPD] restore: ${total} items, ${chunks.length} chunk(s) of ${BATCH_SIZE}`,
+    );
 
     // Chunk to avoid HTTP 504 Gateway Timeout on large batches.
-    let restored = 0
+    let restored = 0;
     for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i]
-      await api.restoreFromTrash(chunk)
-      restored += chunk.length
+      const chunk = chunks[i];
+      await api.restoreFromTrash(chunk);
+      restored += chunk.length;
       console.log(
-        `[GPD] restore chunk ${i + 1}/${chunks.length}: ${restored}/${total} done`
-      )
+        `[GPD] restore chunk ${i + 1}/${chunks.length}: ${restored}/${total} done`,
+      );
       postProgress(
         requestId,
         restored,
         `Restored ${restored} of ${total} items`,
-        "restoreItems"
-      )
+        "restoreItems",
+      );
     }
 
-    console.log(`[GPD] restore complete: ${total} items restored`)
-    postResult("restoreItems", requestId, { restoredCount: total })
+    console.log(`[GPD] restore complete: ${total} items restored`);
+    postResult("restoreItems", requestId, { restoredCount: total });
   } catch (error) {
-    console.error("[GPD] restore error:", error)
-    postError("restoreItems", requestId, error)
+    console.error("[GPD] restore error:", error);
+    postError("restoreItems", requestId, error);
   }
 }
 
@@ -265,11 +265,11 @@ async function restoreItems(requestId, args) {
 // ============================================================
 
 function healthCheck(requestId) {
-  const hasGptk = typeof window.gptkApi !== "undefined"
-  const hasWizData = typeof window.WIZ_global_data !== "undefined"
+  const hasGptk = typeof window.gptkApi !== "undefined";
+  const hasWizData = typeof window.WIZ_global_data !== "undefined";
   // oPEP7c is the signed-in account email in WIZ_global_data
-  const accountEmail = hasWizData ? window.WIZ_global_data.oPEP7c || "" : ""
-  postResult("healthCheck", requestId, { hasGptk, hasWizData, accountEmail })
+  const accountEmail = hasWizData ? window.WIZ_global_data.oPEP7c || "" : "";
+  postResult("healthCheck", requestId, { hasGptk, hasWizData, accountEmail });
 }
 
 // ============================================================
@@ -277,29 +277,29 @@ function healthCheck(requestId) {
 // ============================================================
 
 window.addEventListener("message", async (event) => {
-  if (event.source !== window) return
-  const msg = event.data
-  if (msg?.app !== GPD_APP_ID || msg?.action !== "gptkCommand") return
+  if (event.source !== window) return;
+  const msg = event.data;
+  if (msg?.app !== GPD_APP_ID || msg?.action !== "gptkCommand") return;
 
-  const { command, requestId, args } = msg
-  console.log("GPD: Received command", command, requestId)
+  const { command, requestId, args } = msg;
+  console.log("GPD: Received command", command, requestId);
 
   switch (command) {
     case "getAllMediaItems":
-      await getAllMediaItems(requestId, args)
-      break
+      await getAllMediaItems(requestId, args);
+      break;
     case "trashItems":
-      await trashItems(requestId, args)
-      break
+      await trashItems(requestId, args);
+      break;
     case "restoreItems":
-      await restoreItems(requestId, args)
-      break
+      await restoreItems(requestId, args);
+      break;
     case "healthCheck":
-      healthCheck(requestId)
-      break
+      healthCheck(requestId);
+      break;
     default:
-      postError(command, requestId, `Unknown command: ${command}`)
+      postError(command, requestId, `Unknown command: ${command}`);
   }
-})
+});
 
-console.log("GPD: Command handler loaded")
+console.log("GPD: Command handler loaded");

@@ -1,7 +1,7 @@
 // Full E2E tests — requires Google Photos auth (GP_AUTH_COOKIES or .gp-auth.json).
 // Run: npm run test:e2e
 // Setup: npm run auth:export
-import { defineConfig } from "@playwright/test"
+import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "tests/e2e/full",
@@ -16,4 +16,4 @@ export default defineConfig({
       use: { headless: false },
     },
   ],
-})
+});

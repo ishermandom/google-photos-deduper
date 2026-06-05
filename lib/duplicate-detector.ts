@@ -251,7 +251,11 @@ export async function fullDetectDuplicates(
   if (embeddings.length < 2) {
     return {
       groups: [],
-      timing: emptyTiming({ cacheHits, fetchThumbnailsMs, computeEmbeddingsMs }),
+      timing: emptyTiming({
+        cacheHits,
+        fetchThumbnailsMs,
+        computeEmbeddingsMs,
+      }),
     };
   }
 
@@ -353,9 +357,7 @@ export function withinGroupDuplicates(
 ): DuplicateGroup[] {
   const withEmb = groupItems
     .map((item) => ({ item, emb: embeddingMap.get(item.mediaKey) }))
-    .filter(
-      (x): x is { item: GpdMediaItem; emb: Float32Array } => !!x.emb,
-    );
+    .filter((x): x is { item: GpdMediaItem; emb: Float32Array } => !!x.emb);
   if (withEmb.length < 2) return [];
 
   // Union-Find
@@ -370,7 +372,8 @@ export function withinGroupDuplicates(
   for (let i = 0; i < withEmb.length; i++) {
     for (let j = i + 1; j < withEmb.length; j++) {
       let dot = 0;
-      for (let k = 0; k < dim; k++) dot += withEmb[i].emb[k] * withEmb[j].emb[k];
+      for (let k = 0; k < dim; k++)
+        dot += withEmb[i].emb[k] * withEmb[j].emb[k];
       if (dot >= threshold) union(i, j);
     }
   }
@@ -451,7 +454,10 @@ async function runSmartDetectionInWorker(
     };
 
     worker.postMessage(
-      { type: "detectSmart", data: { flatEmbeddings: flat, n, dim, threshold, buckets } },
+      {
+        type: "detectSmart",
+        data: { flatEmbeddings: flat, n, dim, threshold, buckets },
+      },
       [flat.buffer],
     );
   });
@@ -518,7 +524,12 @@ export async function smartDetectDuplicates(
   };
 
   const t1 = performance.now();
-  const blobs = await fetchThumbnails(subset, cachedKeySet, trackedProgress, signal);
+  const blobs = await fetchThumbnails(
+    subset,
+    cachedKeySet,
+    trackedProgress,
+    signal,
+  );
   const fetchThumbnailsMs = Math.round(performance.now() - t1);
   console.log(
     `[GPD] fetchThumbnails: ${subset.length - cacheHits} items in ${fetchThumbnailsMs}ms`,
@@ -642,7 +653,11 @@ async function fetchThumbnails(
         const url = entry.item.thumb + `=h${THUMB_HEIGHT}`;
         const response = await fetch(url, {
           credentials: "include",
-          signal: (AbortSignal as typeof AbortSignal & { any(signals: AbortSignal[]): AbortSignal }).any([
+          signal: (
+            AbortSignal as typeof AbortSignal & {
+              any(signals: AbortSignal[]): AbortSignal;
+            }
+          ).any([
             AbortSignal.timeout(fetchTimeoutMs),
             ...(signal ? [signal] : []),
           ]),
