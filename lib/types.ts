@@ -40,6 +40,7 @@ export interface ScanLibraryMessage extends BaseMessage {
 }
 
 export type ScanMode = "smart" | "full"
+export type ScanType = "duplicates" | "quality"
 
 export interface ScanOptions {
   similarityThreshold: number // 0.90 - 1.00
@@ -63,6 +64,7 @@ export type ScanPhase =
   | "downloading_thumbnails"
   | "computing_embeddings"
   | "detecting_duplicates"
+  | "scoring_blur"
   | "complete"
 
 export interface ScanResultMessage extends BaseMessage {
@@ -212,11 +214,13 @@ export interface ScanSettings {
   }
   /** When true, stop fetching after 1,000 photos. Useful for fast debug runs. */
   debugPhotoLimit?: boolean
+  scanType: ScanType
 }
 
 export const DEFAULT_SETTINGS: ScanSettings = {
   similarityThreshold: 0.99,
   scanMode: "smart",
   smartWindowSec: 1,
-  debugPhotoLimit: true
+  debugPhotoLimit: true,
+  scanType: "duplicates"
 }

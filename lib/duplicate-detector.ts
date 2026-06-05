@@ -610,9 +610,9 @@ export async function smartDetectDuplicates(
 // Step 1: Fetch thumbnails
 // ============================================================
 
-async function fetchThumbnails(
+export async function fetchThumbnails(
   items: GpdMediaItem[],
-  cachedKeySet: Set<string>,
+  cachedKeySet: Set<string> = new Set(),
   onProgress?: ProgressCallback,
   signal?: AbortSignal
 ): Promise<(Blob | null)[]> {

@@ -15,7 +15,7 @@ import Typography from "@mui/material/Typography"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded"
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded"
-import type { ScanSettings } from "../lib/types"
+import type { ScanSettings, ScanType } from "../lib/types"
 
 function formatWindow(sec: number): string {
   if (sec < 60) return `${sec}s`
@@ -59,12 +59,26 @@ export function ScanConfig({
           borderColor: "divider",
           borderRadius: 2,
         }}>
+        <ToggleButtonGroup
+          value={settings.scanType}
+          exclusive
+          fullWidth
+          size="small"
+          sx={{ mb: 3 }}
+          onChange={(_, value: ScanType) => {
+            if (value !== null) onSettingsChange({ scanType: value })
+          }}>
+          <ToggleButton value="duplicates">Find Duplicates</ToggleButton>
+          <ToggleButton value="quality">Quality Scan</ToggleButton>
+        </ToggleButtonGroup>
+
         <Typography variant="h5" fontWeight={600} gutterBottom>
-          Scan for Duplicates
+          {settings.scanType === "quality" ? "Quality Scan" : "Find Duplicates"}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-          Scan your Google Photos library to find duplicate images using
-          AI-powered image comparison.
+          {settings.scanType === "quality"
+            ? "Scan your library for low-quality photos — blurry or otherwise degraded — so you can review and remove them."
+            : "Scan your Google Photos library to find duplicate images using AI-powered image comparison."}
         </Typography>
 
         <Button
@@ -76,6 +90,12 @@ export function ScanConfig({
           sx={{ mb: 2 }}>
           Scan Library
         </Button>
+
+        {settings.scanType === "quality" && (
+          <Typography variant="caption" color="text.secondary">
+            Blur detection coming soon — scoring is not yet implemented.
+          </Typography>
+        )}
 
         <Accordion
           defaultExpanded
@@ -93,6 +113,7 @@ export function ScanConfig({
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
+            {settings.scanType === "duplicates" && <>
             <Box sx={{ mb: 3 }}>
               <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>
                 Scan mode
@@ -164,6 +185,7 @@ export function ScanConfig({
                 </Typography>
               </Box>
             </Box>
+            </>}
 
             <Divider sx={{ my: 2 }} />
 

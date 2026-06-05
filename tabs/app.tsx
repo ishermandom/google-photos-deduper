@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 
 import { ActionBar } from "../components/ActionBar"
 import { DuplicateGroups } from "../components/DuplicateGroups"
+import { QualityResults } from "../components/QualityResults"
 import { ScanConfig } from "../components/ScanConfig"
 import { ScanProgress } from "../components/ScanProgress"
 import { appReducer } from "../lib/app-reducer"
@@ -31,7 +32,7 @@ import {
   smartDetectDuplicates
 } from "../lib/duplicate-detector"
 import type { DetectionProgress } from "../lib/duplicate-detector"
-import { selectDefaultKeep } from "../lib/duplicate-detector"
+import { fetchThumbnails, selectDefaultKeep } from "../lib/duplicate-detector"
 import { ScanLogger } from "../lib/scan-log"
 import theme from "../lib/theme"
 import { APP_ID, DEFAULT_SETTINGS } from "../lib/types"
@@ -65,6 +66,50 @@ function sendToServiceWorker(message: AppMessage): void {
   chrome.runtime.sendMessage(message)
 }
 
+async function scoreBlurWithWorker(
+  items: GpdMediaItem[],
+  blobs: (Blob | null)[],
+  signal: AbortSignal,
+  onProgress: (processed: number, total: number) => void
+): Promise<Record<string, number>> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(
+      chrome.runtime.getURL("scripts/blur-scorer-worker.js")
+    )
+
+    const onAbort = () => {
+      worker.terminate()
+      reject(new DOMException("Aborted", "AbortError"))
+    }
+    signal.addEventListener("abort", onAbort, { once: true })
+
+    worker.onmessage = (event: MessageEvent) => {
+      const msg = event.data as
+        | { type: "progress"; processed: number; total: number }
+        | { type: "results"; scores: Record<string, number> }
+      if (msg.type === "progress") {
+        onProgress(msg.processed, msg.total)
+      } else if (msg.type === "results") {
+        signal.removeEventListener("abort", onAbort)
+        worker.terminate()
+        resolve(msg.scores)
+      }
+    }
+
+    worker.onerror = (error) => {
+      signal.removeEventListener("abort", onAbort)
+      worker.terminate()
+      reject(new Error(`Blur scorer worker error: ${error.message}`))
+    }
+
+    const scorableItems = items
+      .map((item, i) => ({ mediaKey: item.mediaKey, blob: blobs[i] }))
+      .filter((x): x is { mediaKey: string; blob: Blob } => x.blob !== null)
+
+    worker.postMessage({ type: "score", items: scorableItems })
+  })
+}
+
 // ============================================================
 // App component
 // ============================================================
@@ -81,6 +126,10 @@ export default function App() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(
     new Set()
   )
+
+  const [selectedQualityItemKeys, setSelectedQualityItemKeys] = useState<
+    Set<string>
+  >(new Set())
 
   // Kept overrides: groupId -> Set of mediaKeys the user marked as "Keep"
   const [keptOverrides, setKeptOverrides] = useState<
@@ -124,6 +173,7 @@ export default function App() {
   // Tracks the requestId of the active scan so stale results from previous
   // scans killed by reload can be dropped (they arrive late from the GP tab)
   const currentScanRequestIdRef = useRef<string | null>(null)
+  const currentScanTypeRef = useRef<"duplicates" | "quality">("duplicates")
 
   // Counts failed healthCheck attempts during initial connect so we can retry
   // silently before showing a disconnected error.
@@ -177,6 +227,45 @@ export default function App() {
   const handleDeselectAll = useCallback(() => {
     setSelectedGroupIds(new Set())
   }, [])
+
+  // Reset quality selection when leaving quality_results
+  useEffect(() => {
+    if (state.status !== "quality_results") {
+      setSelectedQualityItemKeys(new Set())
+    }
+  }, [state.status])
+
+  const handleToggleQualityItem = useCallback((mediaKey: string) => {
+    setSelectedQualityItemKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(mediaKey)) next.delete(mediaKey)
+      else next.add(mediaKey)
+      return next
+    })
+  }, [])
+
+  const handleSelectAllQuality = useCallback((flaggedKeys: string[]) => {
+    setSelectedQualityItemKeys(new Set(flaggedKeys))
+  }, [])
+
+  const handleDeselectAllQuality = useCallback(() => {
+    setSelectedQualityItemKeys(new Set())
+  }, [])
+
+  const handleQualityTrash = useCallback(() => {
+    if (state.status !== "quality_results") return
+    const dedupKeys: string[] = []
+    const mediaKeysToTrash: string[] = []
+    for (const mediaKey of selectedQualityItemKeys) {
+      const item = state.mediaItems[mediaKey]
+      if (item?.dedupKey) {
+        dedupKeys.push(item.dedupKey)
+        mediaKeysToTrash.push(mediaKey)
+      }
+    }
+    if (dedupKeys.length === 0) return
+    setTrashConfirm({ dedupKeys, mediaKeysToTrash })
+  }, [state, selectedQualityItemKeys])
 
   // Listen for messages from service worker
   useEffect(() => {
@@ -243,14 +332,14 @@ export default function App() {
                 )
                 cachedMediaItemsRef.current = null
               }
-              dispatch({
-                type: "SCAN_MEDIA_FETCHED",
-                mediaItems: items
-              })
-              runDuplicateDetection(
-                items,
+              const abortSignal =
                 scanAbortRef.current?.signal ?? new AbortController().signal
-              )
+              dispatch({ type: "SCAN_MEDIA_FETCHED", mediaItems: items })
+              if (currentScanTypeRef.current === "quality") {
+                runQualityScan(items, abortSignal)
+              } else {
+                runDuplicateDetection(items, abortSignal)
+              }
             } else {
               dispatch({
                 type: "SCAN_ERROR",
@@ -385,6 +474,63 @@ export default function App() {
             type: "SCAN_ERROR",
             error: `Duplicate detection failed: ${error}`
           })
+        }
+      }
+    },
+    []
+  )
+
+  const runQualityScan = useCallback(
+    async (items: GpdMediaItem[], signal: AbortSignal) => {
+      try {
+        const blobs = await fetchThumbnails(
+          items,
+          new Set(),
+          (progress) => {
+            dispatch({
+              type: "SCAN_PROGRESS",
+              phase: progress.phase,
+              totalItems: progress.total,
+              payload: {
+                app: APP_ID,
+                action: "gptkProgress",
+                requestId: "",
+                itemsProcessed: progress.current,
+                message: `Downloading thumbnails: ${progress.current}/${progress.total}`
+              }
+            })
+          },
+          signal
+        )
+
+        signal.throwIfAborted()
+
+        const blurScores = await scoreBlurWithWorker(items, blobs, signal,
+          (processed, total) => {
+            dispatch({
+              type: "SCAN_PROGRESS",
+              phase: "scoring_blur",
+              totalItems: total,
+              payload: {
+                app: APP_ID,
+                action: "gptkProgress",
+                requestId: "",
+                itemsProcessed: processed,
+                message: `Scoring blur: ${processed}/${total}`
+              }
+            })
+          }
+        )
+
+        const mediaItemMap: Record<string, GpdMediaItem> = {}
+        for (const item of items) mediaItemMap[item.mediaKey] = item
+
+        dispatch({ type: "QUALITY_SCAN_COMPLETE", mediaItems: mediaItemMap, blurScores })
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          dispatch({ type: "SCAN_CANCELLED" })
+        } else {
+          dispatch({ type: "SCAN_ERROR", error: `Quality scan failed: ${error}` })
         }
       }
     },
@@ -535,13 +681,22 @@ export default function App() {
 
     const requestId = generateRequestId()
     currentScanRequestIdRef.current = requestId
+    currentScanTypeRef.current = settings.scanType ?? "duplicates"
     const currentState = stateRef.current
     const hasGptk = currentState.status === "connected" ? currentState.hasGptk : true
     const accountEmail =
-      currentState.status === "connected" || currentState.status === "results"
+      currentState.status === "connected" ||
+      currentState.status === "results" ||
+      currentState.status === "quality_results"
         ? currentState.accountEmail
         : undefined
-    dispatch({ type: "SCAN_STARTED", requestId, hasGptk, accountEmail })
+    dispatch({
+      type: "SCAN_STARTED",
+      scanType: currentScanTypeRef.current,
+      requestId,
+      hasGptk,
+      accountEmail
+    })
 
     console.log(
       `[GPD] starting scan: mode=${settings.scanMode}, threshold=${settings.similarityThreshold}`
@@ -613,25 +768,34 @@ export default function App() {
   }, [state, selectedGroupIds, getKept])
 
   const handleTrashConfirmed = useCallback(() => {
-    if (!trashConfirm || state.status !== "results") return
+    if (
+      !trashConfirm ||
+      (state.status !== "results" && state.status !== "quality_results")
+    )
+      return
     const { dedupKeys, mediaKeysToTrash } = trashConfirm
     setTrashConfirm(null)
 
     const requestId = generateRequestId()
 
-    // Capture snapshot for undo
-    preTrashSnapshotRef.current = {
-      mediaItems: state.mediaItems,
-      groups: state.groups,
-      totalItems: state.totalItems
+    if (state.status === "results") {
+      // Capture snapshot for undo (duplicate mode only)
+      preTrashSnapshotRef.current = {
+        mediaItems: state.mediaItems,
+        groups: state.groups,
+        totalItems: state.totalItems
+      }
+      pendingDedupKeysRef.current = dedupKeys
     }
-    pendingDedupKeysRef.current = dedupKeys
 
     dispatch({
       type: "TRASH_STARTED",
       totalToTrash: dedupKeys.length,
       mediaItems: state.mediaItems,
-      groups: state.groups,
+      groups: state.status === "results" ? state.groups : [],
+      ...(state.status === "quality_results"
+        ? { blurScores: state.blurScores }
+        : {}),
       totalItems: state.totalItems
     })
 
@@ -774,6 +938,20 @@ export default function App() {
             totalEstimate={state.totalEstimate}
             message={state.message}
             onCancel={handleCancelScan}
+          />
+        )}
+
+        {state.status === "quality_results" && (
+          <QualityResults
+            totalItems={state.totalItems}
+            mediaItems={state.mediaItems}
+            blurScores={state.blurScores}
+            selectedItemKeys={selectedQualityItemKeys}
+            onToggleItem={handleToggleQualityItem}
+            onSelectAll={handleSelectAllQuality}
+            onDeselectAll={handleDeselectAllQuality}
+            onTrash={handleQualityTrash}
+            onRescan={handleReset}
           />
         )}
 

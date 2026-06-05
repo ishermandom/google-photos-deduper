@@ -7,7 +7,8 @@ import type {
   GpdMediaItem,
   GptkProgressMessage,
   HealthCheckResultMessage,
-  ScanPhase
+  ScanPhase,
+  ScanType
 } from "./types"
 
 // ============================================================
@@ -20,12 +21,20 @@ export type AppState =
   | { status: "disconnected"; error: string }
   | {
       status: "scanning"
+      scanType: ScanType
       phase: ScanPhase
       itemsProcessed: number
       totalEstimate: number
       message: string
       requestId: string
       hasGptk: boolean
+      accountEmail?: string
+    }
+  | {
+      status: "quality_results"
+      mediaItems: Record<string, GpdMediaItem>
+      blurScores: Record<string, number>
+      totalItems: number
       accountEmail?: string
     }
   | {
@@ -39,6 +48,8 @@ export type AppState =
       status: "trashing"
       mediaItems: Record<string, GpdMediaItem>
       groups: DuplicateGroup[]
+      /** Present when trashing from quality_results — used to restore that state after completion. */
+      blurScores?: Record<string, number>
       totalItems: number
       totalToTrash: number
       trashedSoFar: number
@@ -49,6 +60,7 @@ export type AppAction =
   | { type: "HEALTH_CHECK_RESULT"; payload: HealthCheckResultMessage }
   | {
       type: "SCAN_STARTED"
+      scanType: ScanType
       requestId: string
       hasGptk: boolean
       accountEmail?: string
@@ -66,12 +78,18 @@ export type AppAction =
       groups: DuplicateGroup[]
     }
   | { type: "SCAN_ERROR"; error: string }
+  | {
+      type: "QUALITY_SCAN_COMPLETE"
+      mediaItems: Record<string, GpdMediaItem>
+      blurScores: Record<string, number>
+    }
   | { type: "SCAN_CANCELLED" }
   | {
       type: "TRASH_STARTED"
       totalToTrash: number
       mediaItems: Record<string, GpdMediaItem>
       groups: DuplicateGroup[]
+      blurScores?: Record<string, number>
       totalItems: number
     }
   | { type: "TRASH_PROGRESS"; trashedSoFar: number }
@@ -138,6 +156,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "SCAN_STARTED":
       return {
         status: "scanning",
+        scanType: action.scanType,
         phase: "fetching",
         itemsProcessed: 0,
         totalEstimate: 0,
@@ -183,6 +202,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         accountEmail: "accountEmail" in state ? state.accountEmail : undefined
       }
 
+    case "QUALITY_SCAN_COMPLETE":
+      if (state.status !== "scanning") return state
+      return {
+        status: "quality_results",
+        mediaItems: action.mediaItems,
+        blurScores: action.blurScores,
+        totalItems: Object.keys(action.mediaItems).length,
+        accountEmail: state.accountEmail
+      }
+
     case "SCAN_ERROR":
       return { status: "disconnected", error: action.error }
 
@@ -199,6 +228,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         status: "trashing",
         mediaItems: action.mediaItems,
         groups: action.groups,
+        ...(action.blurScores !== undefined
+          ? { blurScores: action.blurScores }
+          : {}),
         totalItems: action.totalItems,
         totalToTrash: action.totalToTrash,
         trashedSoFar: 0,
@@ -212,17 +244,34 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "TRASH_COMPLETE": {
       if (state.status !== "trashing") return state
       const trashedSet = new Set(action.trashedKeys)
+
+      const newMediaItems = { ...state.mediaItems }
+      for (const key of action.trashedKeys) {
+        delete newMediaItems[key]
+      }
+
+      // Quality mode: return to quality_results with trashed items removed
+      if (state.blurScores !== undefined) {
+        const newBlurScores = { ...state.blurScores }
+        for (const key of action.trashedKeys) {
+          delete newBlurScores[key]
+        }
+        return {
+          status: "quality_results",
+          mediaItems: newMediaItems,
+          blurScores: newBlurScores,
+          totalItems: state.totalItems,
+          accountEmail: state.accountEmail
+        }
+      }
+
+      // Duplicate mode: filter out groups that lost enough members
       const newGroups = state.groups
         .map((g) => ({
           ...g,
           mediaKeys: g.mediaKeys.filter((k) => !trashedSet.has(k))
         }))
         .filter((g) => g.mediaKeys.length >= 2)
-
-      const newMediaItems = { ...state.mediaItems }
-      for (const key of action.trashedKeys) {
-        delete newMediaItems[key]
-      }
 
       return {
         status: "results",
