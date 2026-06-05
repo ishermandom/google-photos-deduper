@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react"
 
 /**
  * Fetch a URL via fetch() (which uses extension host_permissions + cookies)
@@ -7,41 +7,41 @@ import { useState, useEffect } from "react";
  * same URL parameter (=h200) is used, making most fetches instant.
  */
 export function useBlobUrl(url: string | undefined): {
-  blobUrl: string | undefined;
-  loading: boolean;
+  blobUrl: string | undefined
+  loading: boolean
 } {
-  const [blobUrl, setBlobUrl] = useState<string>();
-  const [loading, setLoading] = useState(!!url);
+  const [blobUrl, setBlobUrl] = useState<string>()
+  const [loading, setLoading] = useState(!!url)
 
   useEffect(() => {
     if (!url) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
-    let revoked = false;
-    let objectUrl: string | undefined;
+    let revoked = false
+    let objectUrl: string | undefined
 
-    setLoading(true);
+    setLoading(true)
     fetch(url, { credentials: "include" })
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (!revoked) {
           if (blob) {
-            objectUrl = URL.createObjectURL(blob);
-            setBlobUrl(objectUrl);
+            objectUrl = URL.createObjectURL(blob)
+            setBlobUrl(objectUrl)
           }
-          setLoading(false);
+          setLoading(false)
         }
       })
       .catch(() => {
-        if (!revoked) setLoading(false);
-      });
+        if (!revoked) setLoading(false)
+      })
 
     return () => {
-      revoked = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [url]);
+      revoked = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [url])
 
-  return { blobUrl, loading };
+  return { blobUrl, loading }
 }

@@ -5,7 +5,7 @@
  */
 export function areScanResultsValid(
   stored: { accountEmail?: string },
-  context: { accountEmail?: string },
+  context: { accountEmail?: string }
 ): boolean {
   // Account mismatch: results belong to a different account
   if (
@@ -13,6 +13,6 @@ export function areScanResultsValid(
     context.accountEmail &&
     stored.accountEmail !== context.accountEmail
   )
-    return false;
-  return true;
+    return false
+  return true
 }

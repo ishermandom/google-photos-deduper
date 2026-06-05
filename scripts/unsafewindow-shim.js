@@ -3,5 +3,5 @@
 // In a Chrome extension MAIN world script, `window` IS the page's real window,
 // so we just alias it.
 if (typeof unsafeWindow === "undefined") {
-  window.unsafeWindow = window;
+  window.unsafeWindow = window
 }

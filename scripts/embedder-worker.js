@@ -4096,7 +4096,11 @@
         for (const [, members] of components)
           if (members.length >= 2) allGroups.push(members);
         if (bi2 % 100 === 0)
-          self.postMessage({ type: "detectionProgress", current: bi2 + 1, total: buckets.length });
+          self.postMessage({
+            type: "detectionProgress",
+            current: bi2 + 1,
+            total: buckets.length
+          });
       }
       self.postMessage({ type: "detectionResults", groups: allGroups });
     }
@@ -4111,7 +4115,15 @@
     for (let startIdx = 0; startIdx < n2; startIdx += batchSize) {
       const endIdx = Math.min(startIdx + batchSize, n2);
       const batchLen = endIdx - startIdx;
-      const cosScores = matMul(embeddings, startIdx, endIdx, embeddings, 0, n2, dim);
+      const cosScores = matMul(
+        embeddings,
+        startIdx,
+        endIdx,
+        embeddings,
+        0,
+        n2,
+        dim
+      );
       for (let i2 = 0; i2 < batchLen; i2++) {
         const row = cosScores.subarray(i2 * n2, (i2 + 1) * n2);
         const topKMin = topK(row, minCommunitySize);

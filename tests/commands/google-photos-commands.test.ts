@@ -9,34 +9,34 @@
  * @vitest-environment happy-dom
  */
 import {
-  describe,
-  it,
-  expect,
-  vi,
+  afterEach,
   beforeAll,
   beforeEach,
-  afterEach,
-} from "vitest";
+  describe,
+  expect,
+  it,
+  vi
+} from "vitest"
 
 // ============================================================
 // Globals the script expects at runtime
 // ============================================================
 
-const mockMoveItemsToTrash = vi.fn();
-const mockRestoreFromTrash = vi.fn();
+const mockMoveItemsToTrash = vi.fn()
+const mockRestoreFromTrash = vi.fn()
 
 const mockApi = {
   moveItemsToTrash: mockMoveItemsToTrash,
-  restoreFromTrash: mockRestoreFromTrash,
-};
+  restoreFromTrash: mockRestoreFromTrash
+}
 
 // Set up window globals BEFORE importing the module so the script
 // sees them when it first executes.
 Object.defineProperty(window, "gptkApiUtils", {
   value: { api: mockApi },
   writable: true,
-  configurable: true,
-});
+  configurable: true
+})
 
 // ============================================================
 // Import the commands script (registers listener on window)
@@ -47,8 +47,8 @@ beforeAll(async () => {
   // We import it here purely to register its window "message" listener.
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  await import("../../scripts/google-photos-commands.js");
-});
+  await import("../../scripts/google-photos-commands.js")
+})
 
 // ============================================================
 // Helpers
@@ -59,24 +59,24 @@ function sendCommand(command: string, requestId: string, args: unknown) {
   window.dispatchEvent(
     new MessageEvent("message", {
       source: window,
-      data: { app: "GPD", action: "gptkCommand", command, requestId, args },
-    }),
-  );
+      data: { app: "GPD", action: "gptkCommand", command, requestId, args }
+    })
+  )
 }
 
 /** Collect window.postMessage calls during an async operation. */
 function collectMessages(): { messages: unknown[]; restore: () => void } {
-  const messages: unknown[] = [];
-  const original = window.postMessage.bind(window);
+  const messages: unknown[] = []
+  const original = window.postMessage.bind(window)
   const spy = vi.spyOn(window, "postMessage").mockImplementation((msg) => {
-    messages.push(msg);
-  });
-  return { messages, restore: () => spy.mockRestore() };
+    messages.push(msg)
+  })
+  return { messages, restore: () => spy.mockRestore() }
 }
 
 /** Wait for all queued microtasks / promise continuations to settle. */
 async function flush() {
-  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0))
 }
 
 // ============================================================
@@ -84,15 +84,15 @@ async function flush() {
 // ============================================================
 
 beforeEach(() => {
-  mockMoveItemsToTrash.mockReset();
-  mockRestoreFromTrash.mockReset();
-  mockMoveItemsToTrash.mockResolvedValue(undefined);
-  mockRestoreFromTrash.mockResolvedValue(undefined);
-});
+  mockMoveItemsToTrash.mockReset()
+  mockRestoreFromTrash.mockReset()
+  mockMoveItemsToTrash.mockResolvedValue(undefined)
+  mockRestoreFromTrash.mockResolvedValue(undefined)
+})
 
 afterEach(() => {
-  vi.restoreAllMocks();
-});
+  vi.restoreAllMocks()
+})
 
 // ============================================================
 // Unit tests: getAllMediaItems
@@ -100,14 +100,14 @@ afterEach(() => {
 
 describe("getAllMediaItems — field mapping", () => {
   function setupGptkApi(items: unknown[], nextPageId: string | null = null) {
-    (window as any).gptkApi = {
-      getItemsByUploadedDate: vi.fn().mockResolvedValue({ items, nextPageId }),
-    };
+    ;(window as any).gptkApi = {
+      getItemsByUploadedDate: vi.fn().mockResolvedValue({ items, nextPageId })
+    }
   }
 
   afterEach(() => {
-    delete (window as any).gptkApi;
-  });
+    delete (window as any).gptkApi
+  })
 
   it("passes isOriginalQuality=true through to output item", async () => {
     setupGptkApi([
@@ -117,21 +117,21 @@ describe("getAllMediaItems — field mapping", () => {
         thumb: "https://thumb/1",
         timestamp: 1000,
         creationTimestamp: 2000,
-        isOriginalQuality: true,
-      },
-    ]);
+        isOriginalQuality: true
+      }
+    ])
 
-    const { messages, restore } = collectMessages();
-    sendCommand("getAllMediaItems", "req-oq-1", {});
-    await flush();
+    const { messages, restore } = collectMessages()
+    sendCommand("getAllMediaItems", "req-oq-1", {})
+    await flush()
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems",
-    ) as any;
-    expect(result?.success).toBe(true);
-    expect(result?.data[0].isOriginalQuality).toBe(true);
-    restore();
-  });
+      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems"
+    ) as any
+    expect(result?.success).toBe(true)
+    expect(result?.data[0].isOriginalQuality).toBe(true)
+    restore()
+  })
 
   it("passes isOriginalQuality=false (storage saver) through to output item", async () => {
     setupGptkApi([
@@ -141,20 +141,20 @@ describe("getAllMediaItems — field mapping", () => {
         thumb: "https://thumb/2",
         timestamp: 1000,
         creationTimestamp: 2000,
-        isOriginalQuality: false,
-      },
-    ]);
+        isOriginalQuality: false
+      }
+    ])
 
-    const { messages, restore } = collectMessages();
-    sendCommand("getAllMediaItems", "req-oq-2", {});
-    await flush();
+    const { messages, restore } = collectMessages()
+    sendCommand("getAllMediaItems", "req-oq-2", {})
+    await flush()
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems",
-    ) as any;
-    expect(result?.data[0].isOriginalQuality).toBe(false);
-    restore();
-  });
+      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems"
+    ) as any
+    expect(result?.data[0].isOriginalQuality).toBe(false)
+    restore()
+  })
 
   it("maps undefined isOriginalQuality to null", async () => {
     setupGptkApi([
@@ -163,22 +163,22 @@ describe("getAllMediaItems — field mapping", () => {
         dedupKey: "dk3",
         thumb: "https://thumb/3",
         timestamp: 1000,
-        creationTimestamp: 2000,
+        creationTimestamp: 2000
         // isOriginalQuality intentionally absent
-      },
-    ]);
+      }
+    ])
 
-    const { messages, restore } = collectMessages();
-    sendCommand("getAllMediaItems", "req-oq-3", {});
-    await flush();
+    const { messages, restore } = collectMessages()
+    sendCommand("getAllMediaItems", "req-oq-3", {})
+    await flush()
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems",
-    ) as any;
-    expect(result?.data[0].isOriginalQuality).toBeNull();
-    restore();
-  });
-});
+      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems"
+    ) as any
+    expect(result?.data[0].isOriginalQuality).toBeNull()
+    restore()
+  })
+})
 
 // ============================================================
 // Unit tests: trashItems
@@ -186,75 +186,75 @@ describe("getAllMediaItems — field mapping", () => {
 
 describe("trashItems — chunking", () => {
   it("sends a single API call when items fit in one batch (≤ 250)", async () => {
-    const { messages, restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 200 }, (_, i) => `dk-${i}`);
+    const { messages, restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 200 }, (_, i) => `dk-${i}`)
 
-    sendCommand("trashItems", "req-1", { dedupKeys, mediaKeysToTrash: [] });
-    await flush();
+    sendCommand("trashItems", "req-1", { dedupKeys, mediaKeysToTrash: [] })
+    await flush()
 
-    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(1);
-    expect(mockMoveItemsToTrash).toHaveBeenCalledWith(dedupKeys);
+    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(1)
+    expect(mockMoveItemsToTrash).toHaveBeenCalledWith(dedupKeys)
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "trashItems",
-    ) as any;
-    expect(result?.success).toBe(true);
-    expect(result?.data?.trashedCount).toBe(200);
-    restore();
-  });
+      (m: any) => m.action === "gptkResult" && m.command === "trashItems"
+    ) as any
+    expect(result?.success).toBe(true)
+    expect(result?.data?.trashedCount).toBe(200)
+    restore()
+  })
 
   it("splits 550 items into 3 chunks: 250 + 250 + 50", async () => {
-    const { restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 550 }, (_, i) => `dk-${i}`);
+    const { restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 550 }, (_, i) => `dk-${i}`)
 
-    sendCommand("trashItems", "req-2", { dedupKeys, mediaKeysToTrash: [] });
-    await flush();
+    sendCommand("trashItems", "req-2", { dedupKeys, mediaKeysToTrash: [] })
+    await flush()
 
-    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(3);
-    expect(mockMoveItemsToTrash.mock.calls[0][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[1][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[2][0]).toHaveLength(50);
-    restore();
-  });
+    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(3)
+    expect(mockMoveItemsToTrash.mock.calls[0][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[1][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[2][0]).toHaveLength(50)
+    restore()
+  })
 
   it("posts a progress message after each chunk", async () => {
-    const { messages, restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 500 }, (_, i) => `dk-${i}`);
+    const { messages, restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 500 }, (_, i) => `dk-${i}`)
 
-    sendCommand("trashItems", "req-3", { dedupKeys, mediaKeysToTrash: [] });
-    await flush();
+    sendCommand("trashItems", "req-3", { dedupKeys, mediaKeysToTrash: [] })
+    await flush()
 
     const progressMsgs = messages.filter(
-      (m: any) => m.action === "gptkProgress" && m.command === "trashItems",
-    ) as any[];
+      (m: any) => m.action === "gptkProgress" && m.command === "trashItems"
+    ) as any[]
 
     // One progress message per chunk (2 chunks for 500 items)
-    expect(progressMsgs).toHaveLength(2);
-    expect(progressMsgs[0].itemsProcessed).toBe(250);
-    expect(progressMsgs[1].itemsProcessed).toBe(500);
-    restore();
-  });
+    expect(progressMsgs).toHaveLength(2)
+    expect(progressMsgs[0].itemsProcessed).toBe(250)
+    expect(progressMsgs[1].itemsProcessed).toBe(500)
+    restore()
+  })
 
   it("reports error and stops on first API failure", async () => {
-    mockMoveItemsToTrash.mockRejectedValueOnce(new Error("HTTP 504"));
+    mockMoveItemsToTrash.mockRejectedValueOnce(new Error("HTTP 504"))
 
-    const { messages, restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 400 }, (_, i) => `dk-${i}`);
+    const { messages, restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 400 }, (_, i) => `dk-${i}`)
 
-    sendCommand("trashItems", "req-4", { dedupKeys, mediaKeysToTrash: [] });
-    await flush();
+    sendCommand("trashItems", "req-4", { dedupKeys, mediaKeysToTrash: [] })
+    await flush()
 
     // Only called once — stops after the first failure
-    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(1);
+    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(1)
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "trashItems",
-    ) as any;
-    expect(result?.success).toBe(false);
-    expect(result?.error).toContain("HTTP 504");
-    restore();
-  });
-});
+      (m: any) => m.action === "gptkResult" && m.command === "trashItems"
+    ) as any
+    expect(result?.success).toBe(false)
+    expect(result?.error).toContain("HTTP 504")
+    restore()
+  })
+})
 
 // ============================================================
 // Unit tests: restoreItems
@@ -262,48 +262,48 @@ describe("trashItems — chunking", () => {
 
 describe("restoreItems — chunking", () => {
   it("sends a single API call for ≤ 250 items", async () => {
-    const { restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 100 }, (_, i) => `dk-${i}`);
+    const { restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 100 }, (_, i) => `dk-${i}`)
 
-    sendCommand("restoreItems", "req-5", { dedupKeys });
-    await flush();
+    sendCommand("restoreItems", "req-5", { dedupKeys })
+    await flush()
 
-    expect(mockRestoreFromTrash).toHaveBeenCalledTimes(1);
-    expect(mockRestoreFromTrash).toHaveBeenCalledWith(dedupKeys);
-    restore();
-  });
+    expect(mockRestoreFromTrash).toHaveBeenCalledTimes(1)
+    expect(mockRestoreFromTrash).toHaveBeenCalledWith(dedupKeys)
+    restore()
+  })
 
   it("splits 750 items into 3 chunks: 250 + 250 + 250", async () => {
-    const { restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 750 }, (_, i) => `dk-${i}`);
+    const { restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 750 }, (_, i) => `dk-${i}`)
 
-    sendCommand("restoreItems", "req-6", { dedupKeys });
-    await flush();
+    sendCommand("restoreItems", "req-6", { dedupKeys })
+    await flush()
 
-    expect(mockRestoreFromTrash).toHaveBeenCalledTimes(3);
+    expect(mockRestoreFromTrash).toHaveBeenCalledTimes(3)
     for (const call of mockRestoreFromTrash.mock.calls) {
-      expect(call[0]).toHaveLength(250);
+      expect(call[0]).toHaveLength(250)
     }
-    restore();
-  });
+    restore()
+  })
 
   it("posts a progress message after each chunk", async () => {
-    const { messages, restore } = collectMessages();
-    const dedupKeys = Array.from({ length: 500 }, (_, i) => `dk-${i}`);
+    const { messages, restore } = collectMessages()
+    const dedupKeys = Array.from({ length: 500 }, (_, i) => `dk-${i}`)
 
-    sendCommand("restoreItems", "req-7", { dedupKeys });
-    await flush();
+    sendCommand("restoreItems", "req-7", { dedupKeys })
+    await flush()
 
     const progressMsgs = messages.filter(
-      (m: any) => m.action === "gptkProgress" && m.command === "restoreItems",
-    ) as any[];
+      (m: any) => m.action === "gptkProgress" && m.command === "restoreItems"
+    ) as any[]
 
-    expect(progressMsgs).toHaveLength(2);
-    expect(progressMsgs[0].itemsProcessed).toBe(250);
-    expect(progressMsgs[1].itemsProcessed).toBe(500);
-    restore();
-  });
-});
+    expect(progressMsgs).toHaveLength(2)
+    expect(progressMsgs[0].itemsProcessed).toBe(250)
+    expect(progressMsgs[1].itemsProcessed).toBe(500)
+    restore()
+  })
+})
 
 // ============================================================
 // Integration test: full trash flow with a realistic large batch
@@ -311,50 +311,50 @@ describe("restoreItems — chunking", () => {
 
 describe("integration: trashItems full flow", () => {
   it("chunks 1100 items into 5 batches, reports progress, and returns correct result", async () => {
-    const { messages, restore } = collectMessages();
+    const { messages, restore } = collectMessages()
 
-    const total = 1100;
-    const dedupKeys = Array.from({ length: total }, (_, i) => `dedup-${i}`);
+    const total = 1100
+    const dedupKeys = Array.from({ length: total }, (_, i) => `dedup-${i}`)
     const mediaKeysToTrash = Array.from(
       { length: total },
-      (_, i) => `media-${i}`,
-    );
+      (_, i) => `media-${i}`
+    )
 
-    sendCommand("trashItems", "req-int-1", { dedupKeys, mediaKeysToTrash });
-    await flush();
+    sendCommand("trashItems", "req-int-1", { dedupKeys, mediaKeysToTrash })
+    await flush()
 
     // 1100 / 250 = 4 full chunks + 1 remainder of 100 → 5 calls
-    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(5);
-    expect(mockMoveItemsToTrash.mock.calls[0][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[1][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[2][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[3][0]).toHaveLength(250);
-    expect(mockMoveItemsToTrash.mock.calls[4][0]).toHaveLength(100);
+    expect(mockMoveItemsToTrash).toHaveBeenCalledTimes(5)
+    expect(mockMoveItemsToTrash.mock.calls[0][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[1][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[2][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[3][0]).toHaveLength(250)
+    expect(mockMoveItemsToTrash.mock.calls[4][0]).toHaveLength(100)
 
     // Keys are passed in order and cover the full set
-    const allSentKeys = mockMoveItemsToTrash.mock.calls.flatMap((c) => c[0]);
-    expect(allSentKeys).toEqual(dedupKeys);
+    const allSentKeys = mockMoveItemsToTrash.mock.calls.flatMap((c) => c[0])
+    expect(allSentKeys).toEqual(dedupKeys)
 
     // 5 progress messages, monotonically increasing
     const progressMsgs = messages.filter(
-      (m: any) => m.action === "gptkProgress" && m.command === "trashItems",
-    ) as any[];
-    expect(progressMsgs).toHaveLength(5);
+      (m: any) => m.action === "gptkProgress" && m.command === "trashItems"
+    ) as any[]
+    expect(progressMsgs).toHaveLength(5)
     expect(progressMsgs.map((p: any) => p.itemsProcessed)).toEqual([
-      250, 500, 750, 1000, 1100,
-    ]);
+      250, 500, 750, 1000, 1100
+    ])
 
     // Final result message
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "trashItems",
-    ) as any;
-    expect(result?.success).toBe(true);
-    expect(result?.data?.trashedCount).toBe(total);
-    expect(result?.data?.trashedKeys).toEqual(mediaKeysToTrash);
+      (m: any) => m.action === "gptkResult" && m.command === "trashItems"
+    ) as any
+    expect(result?.success).toBe(true)
+    expect(result?.data?.trashedCount).toBe(total)
+    expect(result?.data?.trashedKeys).toEqual(mediaKeysToTrash)
 
-    restore();
-  });
-});
+    restore()
+  })
+})
 
 // ============================================================
 // getAllMediaItems — per-page timeout (PR #122)
@@ -367,51 +367,51 @@ describe("integration: trashItems full flow", () => {
 
 describe("getAllMediaItems — page timeout", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
-  });
+    vi.useFakeTimers()
+  })
 
   afterEach(() => {
-    vi.useRealTimers();
-    delete (window as any).gptkApi;
-  });
+    vi.useRealTimers()
+    delete (window as any).gptkApi
+  })
 
   it("surfaces a timeout error when a page fetch never resolves", async () => {
-    (window as any).gptkApi = {
+    ;(window as any).gptkApi = {
       // Never resolves — simulates Google's pagination endpoint hanging.
-      getItemsByUploadedDate: vi.fn(() => new Promise(() => {})),
-    };
+      getItemsByUploadedDate: vi.fn(() => new Promise(() => {}))
+    }
 
-    const { messages, restore } = collectMessages();
-    sendCommand("getAllMediaItems", "req-timeout-1", {});
+    const { messages, restore } = collectMessages()
+    sendCommand("getAllMediaItems", "req-timeout-1", {})
 
     // Advance past the 60s per-page timeout to trip the withTimeout race.
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(60_000)
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems",
-    ) as any;
-    expect(result?.success).toBe(false);
-    expect(result?.error).toMatch(/timed out/i);
-    restore();
-  });
+      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems"
+    ) as any
+    expect(result?.success).toBe(false)
+    expect(result?.error).toMatch(/timed out/i)
+    restore()
+  })
 
   it("does not error when the page resolves before the timeout fires", async () => {
-    (window as any).gptkApi = {
+    ;(window as any).gptkApi = {
       getItemsByUploadedDate: vi
         .fn()
-        .mockResolvedValue({ items: [], nextPageId: null }),
-    };
+        .mockResolvedValue({ items: [], nextPageId: null })
+    }
 
-    const { messages, restore } = collectMessages();
-    sendCommand("getAllMediaItems", "req-timeout-2", {});
+    const { messages, restore } = collectMessages()
+    sendCommand("getAllMediaItems", "req-timeout-2", {})
 
     // Flush microtasks (no real delay needed — the page resolves immediately).
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0)
 
     const result = messages.find(
-      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems",
-    ) as any;
-    expect(result?.success).toBe(true);
-    restore();
-  });
-});
+      (m: any) => m.action === "gptkResult" && m.command === "getAllMediaItems"
+    ) as any
+    expect(result?.success).toBe(true)
+    restore()
+  })
+})

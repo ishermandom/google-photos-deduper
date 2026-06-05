@@ -1,3 +1,3 @@
 declare interface Window {
-  gptkApi: unknown;
+  gptkApi: unknown
 }

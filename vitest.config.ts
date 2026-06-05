@@ -1,6 +1,6 @@
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
-import path from "path";
+import path from "path"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vitest/config"
 
 export default defineConfig({
   plugins: [react()],
@@ -9,15 +9,15 @@ export default defineConfig({
     globals: true,
     setupFiles: ["tests/setup.ts"],
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    exclude: ["tests/e2e/**", "tests/perf/**"],
+    exclude: ["tests/e2e/**", "tests/perf/**"]
   },
   benchmark: {
     include: ["tests/perf/**/*.bench.ts?(x)"],
-    environment: "jsdom",
+    environment: "jsdom"
   },
   resolve: {
     alias: {
-      "~": path.resolve(__dirname, "."),
-    },
-  },
-});
+      "~": path.resolve(__dirname, ".")
+    }
+  }
+})

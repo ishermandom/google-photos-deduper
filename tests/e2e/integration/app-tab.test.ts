@@ -5,25 +5,26 @@
  * Prerequisites: `npm run build`
  * Run: `npm run test:integration`
  */
-import { test, expect, type BrowserContext } from "@playwright/test";
+import { expect, test, type BrowserContext } from "@playwright/test"
+
 import {
-  launchExtension,
-  openAppTab,
+  clearStorage,
   injectScanResults,
   injectSelections,
-  clearStorage,
-} from "../fixtures/extension";
+  launchExtension,
+  openAppTab
+} from "../fixtures/extension"
 
-let context: BrowserContext;
-let extensionId: string;
+let context: BrowserContext
+let extensionId: string
 
 test.beforeAll(async () => {
-  ({ context, extensionId } = await launchExtension());
-});
+  ;({ context, extensionId } = await launchExtension())
+})
 
 test.afterAll(async () => {
-  await context.close();
-});
+  await context.close()
+})
 
 // ============================================================
 
@@ -35,14 +36,14 @@ test("restores saved scan results from storage on load", async () => {
         id: "g1",
         mediaKeys: ["key1", "key2"],
         originalMediaKey: "key1",
-        similarity: 0.99,
+        similarity: 0.99
       },
       {
         id: "g2",
         mediaKeys: ["key3", "key4"],
         originalMediaKey: "key3",
-        similarity: 0.98,
-      },
+        similarity: 0.98
+      }
     ],
     {
       key1: {
@@ -55,7 +56,7 @@ test("restores saved scan results from storage on load", async () => {
         resHeight: 100,
         duration: null,
         isOwned: true,
-        fileName: "photo1.jpg",
+        fileName: "photo1.jpg"
       },
       key2: {
         mediaKey: "key2",
@@ -67,7 +68,7 @@ test("restores saved scan results from storage on load", async () => {
         resHeight: 100,
         duration: null,
         isOwned: true,
-        fileName: "photo2.jpg",
+        fileName: "photo2.jpg"
       },
       key3: {
         mediaKey: "key3",
@@ -79,7 +80,7 @@ test("restores saved scan results from storage on load", async () => {
         resHeight: 100,
         duration: null,
         isOwned: true,
-        fileName: "photo3.jpg",
+        fileName: "photo3.jpg"
       },
       key4: {
         mediaKey: "key4",
@@ -91,50 +92,50 @@ test("restores saved scan results from storage on load", async () => {
         resHeight: 100,
         duration: null,
         isOwned: true,
-        fileName: "photo4.jpg",
-      },
+        fileName: "photo4.jpg"
+      }
     },
-    4,
-  );
+    4
+  )
 
-  const page = await openAppTab(context, extensionId);
+  const page = await openAppTab(context, extensionId)
 
   await expect(page.getByText("2 Duplicate Groups Found")).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(page.getByText("4 items scanned")).toBeVisible();
+    timeout: 5000
+  })
+  await expect(page.getByText("4 items scanned")).toBeVisible()
   await expect(
-    page.getByText("2 duplicate groups", { exact: true }).first(),
-  ).toBeVisible();
+    page.getByText("2 duplicate groups", { exact: true }).first()
+  ).toBeVisible()
 
-  await page.close();
-  await clearStorage(context);
-});
+  await page.close()
+  await clearStorage(context)
+})
 
 test("shows 'no duplicates found' when scan returns zero groups", async () => {
-  await injectScanResults(context, [], {}, 500);
+  await injectScanResults(context, [], {}, 500)
 
-  const page = await openAppTab(context, extensionId);
+  const page = await openAppTab(context, extensionId)
 
   await expect(
-    page.getByText("No duplicates found in your library."),
-  ).toBeVisible({ timeout: 5000 });
+    page.getByText("No duplicates found in your library.")
+  ).toBeVisible({ timeout: 5000 })
 
-  await page.close();
-  await clearStorage(context);
-});
+  await page.close()
+  await clearStorage(context)
+})
 
 test("shows disconnected state when GP tab is not open and no saved results", async () => {
-  await clearStorage(context);
+  await clearStorage(context)
 
-  const page = await openAppTab(context, extensionId);
+  const page = await openAppTab(context, extensionId)
 
   await expect(
-    page.getByText(/Cannot connect to Google Photos|open photos\.google\.com/i),
-  ).toBeVisible({ timeout: 8000 });
+    page.getByText(/Cannot connect to Google Photos|open photos\.google\.com/i)
+  ).toBeVisible({ timeout: 8000 })
 
-  await page.close();
-});
+  await page.close()
+})
 
 // ============================================================
 // Selection persistence
@@ -151,7 +152,7 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo1.jpg",
+    fileName: "photo1.jpg"
   },
   key2: {
     mediaKey: "key2",
@@ -163,7 +164,7 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo2.jpg",
+    fileName: "photo2.jpg"
   },
   key3: {
     mediaKey: "key3",
@@ -175,7 +176,7 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo3.jpg",
+    fileName: "photo3.jpg"
   },
   key4: {
     mediaKey: "key4",
@@ -187,7 +188,7 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo4.jpg",
+    fileName: "photo4.jpg"
   },
   key5: {
     mediaKey: "key5",
@@ -199,7 +200,7 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo5.jpg",
+    fileName: "photo5.jpg"
   },
   key6: {
     mediaKey: "key6",
@@ -211,9 +212,9 @@ const BASE_MEDIA_ITEMS = {
     resHeight: 100,
     duration: null,
     isOwned: true,
-    fileName: "photo6.jpg",
-  },
-};
+    fileName: "photo6.jpg"
+  }
+}
 
 test("persists group selections through page reload", async () => {
   // 3 groups; only g1 and g3 are selected (g2 is deselected)
@@ -224,47 +225,47 @@ test("persists group selections through page reload", async () => {
         id: "g1",
         mediaKeys: ["key1", "key2"],
         originalMediaKey: "key1",
-        similarity: 0.99,
+        similarity: 0.99
       },
       {
         id: "g2",
         mediaKeys: ["key3", "key4"],
         originalMediaKey: "key3",
-        similarity: 0.98,
+        similarity: 0.98
       },
       {
         id: "g3",
         mediaKeys: ["key5", "key6"],
         originalMediaKey: "key5",
-        similarity: 0.97,
-      },
+        similarity: 0.97
+      }
     ],
     BASE_MEDIA_ITEMS,
-    6,
-  );
-  await injectSelections(context, ["g1", "g3"], {});
+    6
+  )
+  await injectSelections(context, ["g1", "g3"], {})
 
-  const page = await openAppTab(context, extensionId);
+  const page = await openAppTab(context, extensionId)
   await expect(page.getByText("3 Duplicate Groups Found")).toBeVisible({
-    timeout: 5000,
-  });
+    timeout: 5000
+  })
 
-  const checkboxes = page.locator('input[type="checkbox"]');
-  await expect(checkboxes.nth(0)).toBeChecked(); // g1 selected
-  await expect(checkboxes.nth(1)).not.toBeChecked(); // g2 deselected
-  await expect(checkboxes.nth(2)).toBeChecked(); // g3 selected
+  const checkboxes = page.locator('input[type="checkbox"]')
+  await expect(checkboxes.nth(0)).toBeChecked() // g1 selected
+  await expect(checkboxes.nth(1)).not.toBeChecked() // g2 deselected
+  await expect(checkboxes.nth(2)).toBeChecked() // g3 selected
 
-  await page.reload();
+  await page.reload()
   await expect(page.getByText("3 Duplicate Groups Found")).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(checkboxes.nth(0)).toBeChecked();
-  await expect(checkboxes.nth(1)).not.toBeChecked();
-  await expect(checkboxes.nth(2)).toBeChecked();
+    timeout: 5000
+  })
+  await expect(checkboxes.nth(0)).toBeChecked()
+  await expect(checkboxes.nth(1)).not.toBeChecked()
+  await expect(checkboxes.nth(2)).toBeChecked()
 
-  await page.close();
-  await clearStorage(context);
-});
+  await page.close()
+  await clearStorage(context)
+})
 
 test("persists kept overrides through page reload", async () => {
   // g1 has 2 items; default keep is key1 but we override to keep key2 instead
@@ -275,31 +276,31 @@ test("persists kept overrides through page reload", async () => {
         id: "g1",
         mediaKeys: ["key1", "key2"],
         originalMediaKey: "key1",
-        similarity: 0.99,
-      },
+        similarity: 0.99
+      }
     ],
     { key1: BASE_MEDIA_ITEMS.key1, key2: BASE_MEDIA_ITEMS.key2 },
-    2,
-  );
-  await injectSelections(context, ["g1"], { g1: ["key2"] });
+    2
+  )
+  await injectSelections(context, ["g1"], { g1: ["key2"] })
 
-  const page = await openAppTab(context, extensionId);
+  const page = await openAppTab(context, extensionId)
   await expect(page.getByText("1 Duplicate Group Found")).toBeVisible({
-    timeout: 5000,
-  });
+    timeout: 5000
+  })
 
   // key2 (second card) should have the Keep chip; key1 (first card) should not
-  const cards = page.locator(".MuiCard-root");
-  await expect(cards.nth(0)).not.toContainText("Keep"); // key1 — not kept
-  await expect(cards.nth(1)).toContainText("Keep"); // key2 — kept
+  const cards = page.locator(".MuiCard-root")
+  await expect(cards.nth(0)).not.toContainText("Keep") // key1 — not kept
+  await expect(cards.nth(1)).toContainText("Keep") // key2 — kept
 
-  await page.reload();
+  await page.reload()
   await expect(page.getByText("1 Duplicate Group Found")).toBeVisible({
-    timeout: 5000,
-  });
-  await expect(cards.nth(0)).not.toContainText("Keep");
-  await expect(cards.nth(1)).toContainText("Keep");
+    timeout: 5000
+  })
+  await expect(cards.nth(0)).not.toContainText("Keep")
+  await expect(cards.nth(1)).toContainText("Keep")
 
-  await page.close();
-  await clearStorage(context);
-});
+  await page.close()
+  await clearStorage(context)
+})
