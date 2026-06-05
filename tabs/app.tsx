@@ -156,7 +156,7 @@ export default function App() {
       }
       setKeptOverrides(filteredKept)
     } else {
-      setSelectedGroupIds(new Set(groups.map((g) => g.id)))
+      setSelectedGroupIds(new Set())
       setKeptOverrides({})
     }
   }, [groups])
@@ -584,7 +584,8 @@ export default function App() {
       requestId,
       args: {
         dateRange: settings.dateRange,
-        sinceTimestamp
+        sinceTimestamp,
+        debugPhotoLimit: settings.debugPhotoLimit
       }
     })
   }, [settings])

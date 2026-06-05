@@ -73,6 +73,9 @@ async function getAllMediaItems(requestId, args) {
   const sinceTimestamp =
     args && args.sinceTimestamp ? args.sinceTimestamp : null
 
+  // debugPhotoLimit: cap the fetch at 1,000 items for fast debug runs
+  const debugPhotoLimit = args && args.debugPhotoLimit ? 1000 : null
+
   // Per-page timeout. Google's pagination endpoint occasionally hangs without
   // ever rejecting fetch(), which used to lock the UI on "Fetching media
   // items" indefinitely. A timeout lets us surface a real error to the user.
@@ -98,6 +101,7 @@ async function getAllMediaItems(requestId, args) {
     let nextPageId = null
     const mediaItems = []
     let reachedCache = false
+    let reachedLimit = false
 
     do {
       const page = await withTimeout(
@@ -133,6 +137,13 @@ async function getAllMediaItems(requestId, args) {
             fileName: item.descriptionShort || null,
             productUrl: "https://photos.google.com/photo/" + item.mediaKey
           })
+          if (
+            debugPhotoLimit !== null &&
+            mediaItems.length >= debugPhotoLimit
+          ) {
+            reachedLimit = true
+            break
+          }
         }
       }
       nextPageId = page.nextPageId || null
@@ -143,7 +154,7 @@ async function getAllMediaItems(requestId, args) {
         `Fetched ${mediaItems.length} items`
       )
 
-      if (reachedCache) break
+      if (reachedCache || reachedLimit) break
     } while (nextPageId)
 
     postResult("getAllMediaItems", requestId, mediaItems)

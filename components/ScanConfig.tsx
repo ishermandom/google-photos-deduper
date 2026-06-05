@@ -4,6 +4,9 @@ import AccordionSummary from "@mui/material/AccordionSummary"
 import Alert from "@mui/material/Alert"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
+import Checkbox from "@mui/material/Checkbox"
+import Divider from "@mui/material/Divider"
+import FormControlLabel from "@mui/material/FormControlLabel"
 import Paper from "@mui/material/Paper"
 import Slider from "@mui/material/Slider"
 import ToggleButton from "@mui/material/ToggleButton"
@@ -75,6 +78,7 @@ export function ScanConfig({
         </Button>
 
         <Accordion
+          defaultExpanded
           disableGutters
           elevation={0}
           sx={{
@@ -160,6 +164,31 @@ export function ScanConfig({
                 </Typography>
               </Box>
             </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={settings.debugPhotoLimit ?? false}
+                  onChange={(e) =>
+                    onSettingsChange({ debugPhotoLimit: e.target.checked })
+                  }
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2">
+                    Limit to 1,000 photos
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Stops fetching after 1,000 items — useful for fast debug
+                    runs.
+                  </Typography>
+                </Box>
+              }
+            />
           </AccordionDetails>
         </Accordion>
       </Paper>

@@ -210,10 +210,13 @@ export interface ScanSettings {
     from?: string
     to?: string
   }
+  /** When true, stop fetching after 1,000 photos. Useful for fast debug runs. */
+  debugPhotoLimit?: boolean
 }
 
 export const DEFAULT_SETTINGS: ScanSettings = {
   similarityThreshold: 0.99,
   scanMode: "smart",
-  smartWindowSec: 1
+  smartWindowSec: 1,
+  debugPhotoLimit: true
 }
